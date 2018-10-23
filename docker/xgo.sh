@@ -7,23 +7,33 @@ IMAGE_NAME=xgo
 
 cmd="$1"
 
+function start_xgo()
+{
+    RUNNING_XGO="$(docker ps -q -f name=$CONTAINER_NAME)"
+
+    if [ ! "$RUNNING_XGO" ]; then
+        if [ "$(docker ps -aq -f status=exited -f name=$CONTAINER_NAME)" ]; then
+            docker rm $CONTAINER_NAME
+        fi
+
+        docker container run -w $WORKING_DIR -v $VOLUME_GO -v $VOLUME_GO_PKGS -v $VOLUME_SOURCE -di --name $CONTAINER_NAME $IMAGE_NAME
+    fi
+}
+
 case $cmd in
     stop)
         echo stop
         docker ps -a -f name=$CONTAINER_NAME --format "{{.ID}}" | xargs -I % $SHELL -c 'docker kill %; docker rm %'
         ;;
 
+    run)
+        shift
+        start_xgo
+        docker exec -it xgo bash -c "source ~/.bash_aliases; $*"
+        ;;
+
     "")
-        RUNNING_XGO="$(docker ps -q -f name=$CONTAINER_NAME)"
-
-        if [ ! "$RUNNING_XGO" ]; then
-            if [ "$(docker ps -aq -f status=exited -f name=$CONTAINER_NAME)" ]; then
-                docker rm $CONTAINER_NAME
-            fi
-
-            docker container run -w $WORKING_DIR -v $VOLUME_GO -v $VOLUME_GO_PKGS -v $VOLUME_SOURCE -di --name $CONTAINER_NAME $IMAGE_NAME
-        fi
-
+        start_xgo
         docker exec -it $CONTAINER_NAME bash
 
         ;;
